@@ -15,6 +15,7 @@ export interface WeatherStation {
 // Weather Data Types
 export interface WeatherData {
   stationId: string;
+  stationName?: string; // Station name from Ecowitt API
   timestamp: Date;
   temperature: number; // °C
   humidity: number; // %
@@ -40,6 +41,11 @@ export interface EcowittApiResponse {
 }
 
 export interface EcowittWeatherData {
+  // Device/Station information
+  device_name?: string;
+  station_name?: string;
+  device_id?: string;
+  model?: string;
   outdoor: {
     temperature: {
       value: string;

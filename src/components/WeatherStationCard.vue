@@ -2,7 +2,11 @@
   <div class="weather-station-card">
     <div class="station-header">
       <div class="station-info">
-        <h3>{{ station.name }}</h3>
+        <h3>{{ displayStationName }}</h3>
+        <p v-if="weatherData?.stationName && weatherData.stationName !== station.name" class="api-station-name">
+          <span class="weather-emoji">🏷️</span>
+          Device: {{ weatherData.stationName }}
+        </p>
         <p v-if="station.location" class="station-location">
           <span class="weather-emoji">📍</span>
           {{ station.location }}
@@ -134,6 +138,11 @@ const isOnline = computed(() => {
   return props.weatherData.timestamp > tenMinutesAgo;
 });
 
+const displayStationName = computed(() => {
+  // Prefer the station name from API if available, otherwise use user-defined name
+  return props.weatherData?.stationName || props.station.name;
+});
+
 // Helper functions
 function formatRelativeTime(timestamp: Date): string {
   const now = new Date();
@@ -189,6 +198,17 @@ function formatRelativeTime(timestamp: Date): string {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.api-station-name {
+  margin: 0 0 0.5rem 0;
+  color: var(--text-color);
+  font-size: 0.8rem;
+  font-style: italic;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  opacity: 0.8;
 }
 
 .status-indicator {
