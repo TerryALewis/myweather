@@ -15,11 +15,11 @@ class ConvexApiService {
       const mockStations: WeatherStation[] = [
         {
           id: '1',
-          name: 'Backyard Weather Station',
+          name: 'Lewis Farm (Walnut Hill)',
           macAddress: '8C:4F:00:02:EC:A7',
           apiKey: import.meta.env.VITE_ECOWITT_API_KEY || '',
           applicationKey: import.meta.env.VITE_ECOWITT_APPLICATION_KEY || '',
-          location: 'Backyard',
+          location: 'Frontyard',
           description: 'Main weather monitoring station',
           isActive: true,
           createdAt: new Date('2024-01-01'),
