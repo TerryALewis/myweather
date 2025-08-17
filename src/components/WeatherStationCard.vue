@@ -3,7 +3,12 @@
     <div class="station-header">
       <div class="station-info">
         <h3>{{ displayStationName }}</h3>
-        <p v-if="weatherData?.stationName && weatherData.stationName !== station.name" class="api-station-name">
+        <p
+          v-if="
+            weatherData?.stationName && weatherData.stationName !== station.name
+          "
+          class="api-station-name"
+        >
           <span class="weather-emoji">🏷️</span>
           Device: {{ weatherData.stationName }}
         </p>
@@ -57,7 +62,7 @@
           <span class="label">Pressure:</span>
           <span class="value">{{ weatherData.pressure.toFixed(2) }} Hg</span>
         </div>
-        
+
         <div class="metric-row">
           <span class="weather-emoji">🌧️</span>
           <span class="label">Rainfall:</span>

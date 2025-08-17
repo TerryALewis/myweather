@@ -82,7 +82,7 @@ class EcowittApiService {
 
   private parseWeatherData(data: any, stationId: string): WeatherData {
     console.log('🏷️ Parsing weather data:', data); // Debug: log full data structure
-    
+
     const outdoor = data.outdoor || {};
     const rainfall = data.rainfall_piezo || {};
     const solarAndUvi = data.solar_and_uvi || {};
@@ -91,12 +91,13 @@ class EcowittApiService {
     const pressureData = data.pressure || [];
 
     // Extract station name from various possible fields
-    const stationName = data.device_name || 
-                       data.station_name || 
-                       data.name || 
-                       data.device?.name ||
-                       data.station?.name ||
-                       undefined;
+    const stationName =
+      data.device_name ||
+      data.station_name ||
+      data.name ||
+      data.device?.name ||
+      data.station?.name ||
+      undefined;
 
     console.log('🏷️ Extracted station name:', stationName); // Debug: log station name
 

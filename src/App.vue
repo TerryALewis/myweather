@@ -1,36 +1,28 @@
 <template>
   <div id="app">
-    <header class="app-header">
+    <header>
       <nav class="navbar">
         <div class="nav-brand">
-          <span class="weather-icon">🌤️</span>
-          <h1>MyWeather</h1>
+          <router-link to="/" class="brand-link">
+            <span class="weather-icon">🌤️</span>
+            <span class="brand-text">MyWeather</span>
+          </router-link>
         </div>
         <div class="nav-links">
-          <router-link to="/" class="nav-link">
-            <span class="weather-emoji">🏠</span>
-            Dashboard
-          </router-link>
-          <router-link to="/stations" class="nav-link">
-            <span class="weather-emoji">📡</span>
-            Stations
-          </router-link>
-          <router-link to="/settings" class="nav-link">
-            <span class="weather-emoji">⚙️</span>
-            Settings
-          </router-link>
+          <router-link to="/" class="nav-link">🏠 Dashboard</router-link>
+          <router-link to="/stations" class="nav-link">📡 Stations</router-link>
+          <router-link to="/settings" class="nav-link">⚙️ Settings</router-link>
         </div>
       </nav>
     </header>
 
-    <main class="app-main">
+    <main class="main-content">
       <router-view />
     </main>
 
-    <footer class="app-footer">
+    <footer class="footer">
       <div class="footer-content">
-        <p>🌈 MyWeather - Powered by Ecowitt Weather Stations</p>
-        <p class="weather-emoji">☀️🌙⭐</p>
+        <p>🌤️ MyWeather - Powered by Ecowitt Weather Stations</p>
       </div>
     </footer>
   </div>
@@ -43,97 +35,105 @@ import { useWeatherStore } from './stores/weather';
 const weatherStore = useWeatherStore();
 
 onMounted(() => {
-  // Initialize weather data on app load
+  // Initialize the weather store when the app loads
   weatherStore.loadStations();
 });
 </script>
 
 <style scoped>
-.app-header {
-  background: linear-gradient(
-    135deg,
-    var(--primary-color) 0%,
-    var(--secondary-color) 100%
-  );
-  color: white;
-  padding: 1rem 0;
-  box-shadow: 0 4px 20px var(--shadow-color);
+#app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .navbar {
-  max-width: 1200px;
-  margin: 0 auto;
+  background: linear-gradient(135deg, var(--sky-blue), var(--ocean-blue));
+  padding: 1rem 2rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 2rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
-.nav-brand {
+.nav-brand .brand-link {
   display: flex;
   align-items: center;
-  gap: 12px;
+  text-decoration: none;
+  color: white;
+  font-size: 1.5rem;
+  font-weight: bold;
 }
 
-.nav-brand h1 {
-  margin: 0;
-  font-size: 1.8rem;
-  font-weight: 700;
+.weather-icon {
+  font-size: 2rem;
+  margin-right: 0.5rem;
+}
+
+.brand-text {
+  font-size: 1.5rem;
 }
 
 .nav-links {
   display: flex;
-  gap: 2rem;
+  gap: 1.5rem;
 }
 
 .nav-link {
   color: white;
   text-decoration: none;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border-radius: 8px;
-  transition: background-color 0.3s ease;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  transition: all 0.3s ease;
   font-weight: 500;
 }
 
-.nav-link:hover,
+.nav-link:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
 .nav-link.router-link-active {
-  background-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.3);
+  font-weight: bold;
 }
 
-.app-main {
-  min-height: calc(100vh - 200px);
-  padding: 2rem 0;
+.main-content {
+  flex: 1;
+  padding: 2rem;
+  background: linear-gradient(180deg, var(--cloud-white), var(--sky-blue));
+  min-height: calc(100vh - 140px);
 }
 
-.app-footer {
-  background: var(--storm-gray);
+.footer {
+  background: linear-gradient(135deg, var(--storm-gray), var(--ocean-blue));
   color: white;
+  padding: 1rem;
   text-align: center;
-  padding: 2rem 0;
   margin-top: auto;
 }
 
 .footer-content p {
-  margin: 0.5rem 0;
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.9;
 }
 
 @media (max-width: 768px) {
   .navbar {
     flex-direction: column;
     gap: 1rem;
-    padding: 0 1rem;
   }
 
   .nav-links {
-    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
   }
 
-  .nav-link {
-    padding: 6px 12px;
-    font-size: 0.9rem;
+  .main-content {
+    padding: 1rem;
   }
 }
 </style>
