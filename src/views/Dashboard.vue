@@ -143,7 +143,11 @@
     <section class="forecast-section">
       <div class="section-header">
         <h2>7-Day Forecast</h2>
-        <p class="section-subtitle">Weather prediction for the next week</p>
+        <p class="section-subtitle">
+          Weather prediction for the next week{{
+            forecastLocation ? ` for ${forecastLocation}` : ''
+          }}
+        </p>
       </div>
 
       <div class="forecast-content">
@@ -277,6 +281,7 @@ const weatherStore = useWeatherStore();
 const forecastLoading = ref(false);
 const forecastError = ref<string | null>(null);
 const forecastData = ref<ForecastDay[]>([]);
+const forecastLocation = ref<string | null>(null);
 
 const mapLoading = ref(false);
 const mapError = ref<string | null>(null);
@@ -378,6 +383,36 @@ function formatMonthDate(dateString: string): string {
   return `${month} ${day}`;
 }
 
+// Get location name from coordinates using reverse geocoding
+async function getLocationName(lat: number, lon: number): Promise<string> {
+  try {
+    // Use a free reverse geocoding service to get location name
+    const response = await fetch(
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`
+    );
+
+    if (response.ok) {
+      const data = await response.json();
+      // Try to get city and state, fallback to locality or administrative area
+      const city = data.city || data.locality || data.principalSubdivision;
+      const state = data.principalSubdivisionCode || data.principalSubdivision;
+
+      if (city && state) {
+        return `${city}, ${state}`;
+      } else if (city) {
+        return city;
+      } else if (data.locality) {
+        return data.locality;
+      }
+    }
+  } catch (error) {
+    console.warn('Could not get location name:', error);
+  }
+
+  // Fallback to coordinates
+  return `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+}
+
 // Forecast data loading
 async function loadForecastData() {
   try {
@@ -410,7 +445,20 @@ async function loadForecastData() {
     );
     forecastData.value = forecast;
 
-    console.log('✅ Forecast loaded successfully:', forecast.length, 'days');
+    // Get and store the location name for display
+    const locationName = await getLocationName(
+      location.latitude,
+      location.longitude
+    );
+    forecastLocation.value = locationName;
+
+    console.log(
+      '✅ Forecast loaded successfully:',
+      forecast.length,
+      'days',
+      'for',
+      locationName
+    );
     forecastLoading.value = false;
   } catch (error) {
     console.error('❌ Error loading forecast data:', error);
