@@ -135,6 +135,264 @@ class EcowittApiService {
     }
   }
 
+  async getHistoricalData(
+    macAddress: string,
+    apiKey: string,
+    applicationKey: string,
+    startTime: Date,
+    endTime: Date,
+    metricType?: string
+  ): Promise<
+    Array<{
+      timestamp: Date;
+      temperature: number;
+      humidity: number;
+      pressure: number;
+      windSpeed: number;
+      rainfall: number;
+    }>
+  > {
+    try {
+      const userSettings = this.getUserSettings();
+      const unitIds = this.getEcowittUnitIds(userSettings);
+
+      // Format dates for API (Ecowitt uses YYYY-MM-DD HH:mm:ss format in local time)
+      const formatEcowittDate = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+      };
+
+      // Build call_back parameter based on requested metric type
+      let callBackParam = 'outdoor,indoor.humidity'; // Default for general data
+
+      if (metricType) {
+        switch (metricType) {
+          case 'windSpeed':
+            callBackParam = 'outdoor,wind.wind_speed';
+            break;
+          case 'pressure':
+            callBackParam = 'outdoor,pressure.relative';
+            break;
+          case 'rainfall':
+            callBackParam = 'outdoor,rainfall_piezo.weekly';
+            break;
+          case 'temperature':
+            callBackParam = 'outdoor.temperature';
+            break;
+          case 'humidity':
+            callBackParam = 'outdoor.humidity,indoor.humidity';
+            break;
+          default:
+            callBackParam =
+              'outdoor,indoor.humidity,wind.wind_speed,pressure.relative,rainfall_piezo.weekly';
+        }
+      }
+
+      // Use "auto" cycle_type and specify sensors based on metric type
+      const params = {
+        application_key: applicationKey,
+        api_key: apiKey,
+        mac: macAddress,
+        start_date: formatEcowittDate(startTime),
+        end_date: formatEcowittDate(endTime),
+        cycle_type: 'auto', // Use "auto" like in the working example
+        call_back: callBackParam, // Dynamic based on metric type
+        ...unitIds,
+      };
+
+      console.log('📊 Historical API Request:', {
+        url: `${this.baseUrl}/device/history`,
+        metricType: metricType || 'all',
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        formattedStartDate: formatEcowittDate(startTime),
+        formattedEndDate: formatEcowittDate(endTime),
+        cycleType: 'auto', // Using "auto" like working example
+        callBack: callBackParam, // Dynamic based on metric type
+        params: {
+          ...params,
+          api_key: apiKey ? '***' : 'MISSING',
+          application_key: applicationKey ? '***' : 'MISSING',
+        },
+      });
+
+      const response = await axios.get<EcowittApiResponse>(
+        `${this.baseUrl}/device/history`,
+        { params }
+      );
+
+      console.log('📊 Historical API Response Status:', response.status);
+      console.log('📊 Historical API Response Data:', response.data);
+
+      if (response.data.code !== 0) {
+        console.error('❌ Historical API Error Code:', response.data.code);
+        console.error('❌ Historical API Error Message:', response.data.msg);
+        throw new Error(`Ecowitt Historical API Error: ${response.data.msg}`);
+      }
+
+      return this.parseHistoricalData(response.data.data, userSettings);
+    } catch (error) {
+      console.error('💥 Error in getHistoricalData:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('🔗 Historical Data Axios Error:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          message: error.message,
+        });
+
+        if (error.response?.data) {
+          const errorData = error.response.data;
+          if (errorData.msg) {
+            throw new Error(`Ecowitt Historical API Error: ${errorData.msg}`);
+          }
+        }
+
+        throw new Error(`Historical data network error: ${error.message}`);
+      }
+      throw error;
+    }
+  }
+
+  private parseHistoricalData(
+    data: any,
+    userSettings: UserSettings
+  ): Array<{
+    timestamp: Date;
+    temperature: number;
+    humidity: number;
+    pressure: number;
+    windSpeed: number;
+    rainfall: number;
+  }> {
+    try {
+      console.log('🔍 Parsing historical data structure:', data);
+
+      if (!data || !data.outdoor) {
+        console.warn(
+          '❌ Invalid historical data format - missing outdoor data:',
+          data
+        );
+        return [];
+      }
+
+      // Extract the lists from the response structure
+      const outdoor = data.outdoor || {};
+      const temperatureList = outdoor.temperature?.list || {};
+      const humidityList = outdoor.humidity?.list || {};
+      const pressureList = data.pressure?.relative?.list || {};
+
+      // Try different paths for wind data
+      const windList =
+        data.wind?.wind_speed?.list ||
+        data.wind?.list ||
+        data.outdoor?.wind_speed?.list ||
+        {};
+
+      const rainfallList = data.rainfall_piezo?.weekly?.list || {};
+
+      console.log('📊 Extracted data lists:', {
+        temperatureEntries: Object.keys(temperatureList).length,
+        humidityEntries: Object.keys(humidityList).length,
+        pressureEntries: Object.keys(pressureList).length,
+        windEntries: Object.keys(windList).length,
+        rainfallEntries: Object.keys(rainfallList).length,
+      });
+
+      // Debug wind data specifically
+      console.log('💨 Wind data structure:', {
+        windPath: data.wind,
+        windSpeedPath: data.wind?.wind_speed,
+        outdoorWindPath: data.outdoor?.wind_speed,
+        windListSample: Object.entries(windList).slice(0, 3),
+      });
+
+      // Debug pressure data specifically
+      console.log('🔧 Pressure data structure:', {
+        pressurePath: data.pressure,
+        pressureRelativePath: data.pressure?.relative,
+        pressureListSample: Object.entries(pressureList).slice(0, 3),
+      });
+
+      // Debug rainfall data specifically
+      console.log('🌧️ Rainfall data structure:', {
+        rainfallPath: data.rainfall_piezo,
+        rainfallWeeklyPath: data.rainfall_piezo?.weekly,
+        rainfallListSample: Object.entries(rainfallList).slice(0, 3),
+      });
+
+      // Get all unique timestamps from all data sources
+      const allTimestamps = new Set([
+        ...Object.keys(temperatureList),
+        ...Object.keys(humidityList),
+        ...Object.keys(pressureList),
+        ...Object.keys(windList),
+        ...Object.keys(rainfallList),
+      ]);
+
+      console.log('⏰ Found timestamps:', allTimestamps.size);
+
+      const result = Array.from(allTimestamps)
+        .map((timestampStr: string) => {
+          // Convert timestamp string to Date (assuming Unix timestamp in seconds)
+          const timestamp = new Date(parseInt(timestampStr) * 1000);
+
+          // Extract values for this timestamp, with fallbacks
+          const tempRaw = parseFloat(temperatureList[timestampStr] || '0');
+          const humidityRaw = parseFloat(humidityList[timestampStr] || '0');
+          const pressureRaw = parseFloat(pressureList[timestampStr] || '0');
+          const windSpeedRaw = parseFloat(windList[timestampStr] || '0');
+          const rainfallRaw = parseFloat(rainfallList[timestampStr] || '0');
+
+          // Debug wind speed values
+          if (windSpeedRaw > 0) {
+            console.log('💨 Wind speed debug:', {
+              timestamp: new Date(
+                parseInt(timestampStr) * 1000
+              ).toLocaleTimeString(),
+              rawValue: windList[timestampStr],
+              parsedRaw: windSpeedRaw,
+              converted: this.convertWindSpeed(
+                windSpeedRaw,
+                userSettings.windUnit
+              ),
+            });
+          }
+
+          return {
+            timestamp,
+            temperature: this.convertTemperature(
+              tempRaw,
+              userSettings.temperatureUnit
+            ),
+            humidity: humidityRaw, // Humidity is already in percentage
+            pressure: this.convertPressure(
+              pressureRaw,
+              userSettings.pressureUnit
+            ),
+            windSpeed: this.convertWindSpeed(
+              windSpeedRaw,
+              userSettings.windUnit
+            ),
+            rainfall: this.mmToInches(rainfallRaw),
+          };
+        })
+        .filter((item) => !isNaN(item.timestamp.getTime())) // Remove invalid timestamps
+        .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()); // Sort by timestamp
+
+      console.log('✅ Parsed historical data points:', result.length);
+      return result;
+    } catch (error) {
+      console.error('❌ Error parsing historical data:', error);
+      return [];
+    }
+  }
+
   private parseWeatherData(
     data: any,
     stationId: string,

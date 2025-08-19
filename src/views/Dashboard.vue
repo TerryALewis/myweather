@@ -39,13 +39,18 @@
 
       <div v-else class="current-weather-content">
         <!-- Main Weather Display -->
-        <div class="main-weather-card">
+        <div
+          class="main-weather-card clickable"
+          @click="showMetricChart('temperature')"
+          title="Click to view 24-hour temperature history"
+        >
           <div v-if="primaryWeatherData" class="primary-weather">
             <div class="temperature-display">
               <span class="temperature">{{
                 primaryWeatherData.temperature.toFixed(0)
               }}</span>
               <span class="temperature-unit">{{ temperatureUnit }}</span>
+              <div class="chart-indicator">📈</div>
             </div>
             <div class="weather-info">
               <h3>{{ primaryStationName }}</h3>
@@ -65,8 +70,12 @@
         </div>
 
         <!-- Weather Metrics Grid -->
-        <div class="weather-metrics-grid">
-          <div class="metric-card">
+        <div v-if="!showChart" class="weather-metrics-grid">
+          <div
+            class="metric-card clickable"
+            @click="showMetricChart('humidity')"
+            title="Click to view 24-hour history"
+          >
             <span class="metric-icon">💧</span>
             <div class="metric-info">
               <span class="metric-label">Humidity</span>
@@ -74,8 +83,13 @@
                 >{{ primaryWeatherData?.humidity.toFixed(0) }}%</span
               >
             </div>
+            <div class="chart-indicator">📈</div>
           </div>
-          <div class="metric-card">
+          <div
+            class="metric-card clickable"
+            @click="showMetricChart('windSpeed')"
+            title="Click to view 24-hour history"
+          >
             <span class="metric-icon">🌬️</span>
             <div class="metric-info">
               <span class="metric-label">Wind</span>
@@ -84,8 +98,13 @@
                 {{ windSpeedUnit }}</span
               >
             </div>
+            <div class="chart-indicator">📈</div>
           </div>
-          <div class="metric-card">
+          <div
+            class="metric-card clickable"
+            @click="showMetricChart('pressure')"
+            title="Click to view 24-hour history"
+          >
             <span class="metric-icon">📊</span>
             <div class="metric-info">
               <span class="metric-label">Pressure</span>
@@ -94,8 +113,13 @@
                 {{ pressureUnit }}</span
               >
             </div>
+            <div class="chart-indicator">📈</div>
           </div>
-          <div class="metric-card">
+          <div
+            class="metric-card clickable"
+            @click="showMetricChart('rainfall')"
+            title="Click to view 24-hour history"
+          >
             <span class="metric-icon">🌧️</span>
             <div class="metric-info">
               <span class="metric-label">Rainfall</span>
@@ -103,6 +127,7 @@
                 >{{ primaryWeatherData?.rainfall.toFixed(2) }} in</span
               >
             </div>
+            <div class="chart-indicator">📈</div>
           </div>
           <div v-if="primaryWeatherData?.uvIndex" class="metric-card">
             <span class="metric-icon">☀️</span>
@@ -122,6 +147,20 @@
               >
             </div>
           </div>
+        </div>
+
+        <!-- Weather Chart Display -->
+        <div v-if="showChart && chartData" class="chart-container">
+          <WeatherChart
+            :title="chartInfo.title"
+            :icon="chartInfo.icon"
+            :unit="chartUnit"
+            :color="chartInfo.color"
+            :data="chartData"
+            :current-value="currentChartValue"
+            :time-period="chartTimePeriod"
+            @close="closeChart"
+          />
         </div>
 
         <!-- Quick Actions -->
@@ -282,7 +321,9 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useWeatherStore } from '../stores/weather';
 import { forecastService, type ForecastDay } from '../services/forecast';
+import { historicalDataService, type MetricType } from '../services/historical';
 import type { WeatherData } from '../types/weather';
+import WeatherChart from '../components/WeatherChart.vue';
 
 const weatherStore = useWeatherStore();
 
@@ -302,6 +343,18 @@ const userSettings = ref({
   windUnit: 'mph' as 'ms' | 'kmh' | 'mph' | 'knots',
   pressureUnit: 'inhg' as 'hpa' | 'inhg' | 'mmhg',
 });
+
+// Chart state
+const showChart = ref(false);
+const currentMetricType = ref<MetricType | null>(null);
+const chartData = ref<Array<{ timestamp: Date; value: number }>>([]);
+const chartInfo = ref<{ title: string; icon: string; color: string }>({
+  title: '',
+  icon: '',
+  color: '',
+});
+const chartUnit = ref('');
+const currentChartValue = ref('');
 
 // Computed properties for current weather
 const loading = computed(() => weatherStore.loading);
@@ -356,19 +409,46 @@ const pressureUnit = computed(() => {
   }
 });
 
+// Chart time period based on metric type
+const chartTimePeriod = computed(() => {
+  if (currentMetricType.value === 'rainfall') {
+    return 'This week';
+  }
+  return 'Last 24 hours';
+});
+
 // Auto-refresh interval
 let refreshInterval: number | null = null;
 
 onMounted(async () => {
   loadUserSettings();
-  await refreshData();
-  await loadForecastData();
-  await loadWeatherMap();
+
+  try {
+    await refreshData();
+  } catch (error) {
+    console.error('Error loading weather data:', error);
+  }
+
+  try {
+    await loadForecastData();
+  } catch (error) {
+    console.error('Error loading forecast data:', error);
+  }
+
+  try {
+    await loadWeatherMap();
+  } catch (error) {
+    console.error('Error loading weather map:', error);
+  }
 
   // Set up auto-refresh every 5 minutes
   refreshInterval = window.setInterval(
-    () => {
-      refreshAllData();
+    async () => {
+      try {
+        await refreshAllData();
+      } catch (error) {
+        console.error('Error during auto-refresh:', error);
+      }
     },
     5 * 60 * 1000
   );
@@ -691,6 +771,92 @@ function getNearestRadarSite(lat: number, lon: number): string {
 
   return nearest;
 }
+
+// Chart Methods
+async function showMetricChart(metricType: MetricType) {
+  try {
+    if (!primaryWeatherData.value) return;
+
+    // Get the primary station details for API credentials
+    const primaryStation = activeStations.value?.[0];
+    if (!primaryStation) {
+      console.warn('No primary station found for historical data');
+      return;
+    }
+
+    currentMetricType.value = metricType;
+    chartInfo.value = historicalDataService.getMetricInfo(metricType);
+    chartUnit.value = historicalDataService.getDisplayUnit(
+      metricType,
+      userSettings.value
+    );
+
+    // Get current value for display
+    switch (metricType) {
+      case 'temperature':
+        currentChartValue.value =
+          primaryWeatherData.value.temperature.toFixed(0);
+        break;
+      case 'humidity':
+        currentChartValue.value = primaryWeatherData.value.humidity.toFixed(0);
+        break;
+      case 'windSpeed':
+        currentChartValue.value = primaryWeatherData.value.windSpeed.toFixed(1);
+        break;
+      case 'pressure':
+        currentChartValue.value = primaryWeatherData.value.pressure.toFixed(2);
+        break;
+      case 'rainfall':
+        currentChartValue.value = primaryWeatherData.value.rainfall.toFixed(2);
+        break;
+      default:
+        currentChartValue.value = '0';
+    }
+
+    // Try to get real historical data from Ecowitt API
+    console.log('🔄 Attempting to load real historical data...');
+    let historicalData = await historicalDataService.getHistoricalData(
+      primaryStation.macAddress,
+      primaryStation.apiKey,
+      primaryStation.applicationKey,
+      metricType,
+      userSettings.value
+    );
+
+    // If real data is empty or failed, fall back to generated data
+    if (historicalData.length === 0) {
+      console.log(
+        '📊 No real historical data available, generating mock data...'
+      );
+      historicalData = historicalDataService.generateHistoricalData(
+        primaryWeatherData.value,
+        metricType,
+        userSettings.value
+      );
+    } else {
+      console.log(
+        '✅ Successfully loaded real historical data:',
+        historicalData.length,
+        'points'
+      );
+    }
+
+    chartData.value = historicalData;
+    showChart.value = true;
+  } catch (error) {
+    console.error('Error showing metric chart:', error);
+    // Reset chart state on error
+    showChart.value = false;
+    currentMetricType.value = null;
+    chartData.value = [];
+  }
+}
+
+function closeChart() {
+  showChart.value = false;
+  currentMetricType.value = null;
+  chartData.value = [];
+}
 </script>
 
 <style scoped>
@@ -753,6 +919,21 @@ function getNearestRadarSite(lat: number, lon: number): string {
   padding: 2rem;
   margin-bottom: 2rem;
   box-shadow: 0 4px 20px var(--shadow-color);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+  position: relative;
+}
+
+.main-weather-card.clickable {
+  cursor: pointer;
+  border: 1px solid rgba(74, 144, 226, 0.1);
+}
+
+.main-weather-card.clickable:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 32px rgba(74, 144, 226, 0.2);
+  border-color: rgba(74, 144, 226, 0.3);
 }
 
 .primary-weather {
@@ -765,6 +946,7 @@ function getNearestRadarSite(lat: number, lon: number): string {
   display: flex;
   align-items: baseline;
   gap: 0.5rem;
+  position: relative;
 }
 
 .temperature {
@@ -825,10 +1007,59 @@ function getNearestRadarSite(lat: number, lon: number): string {
   gap: 1rem;
   box-shadow: 0 2px 10px var(--shadow-color);
   transition: transform 0.2s ease;
+  position: relative;
 }
 
 .metric-card:hover {
   transform: translateY(-2px);
+}
+
+.metric-card.clickable {
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(74, 144, 226, 0.1);
+}
+
+.metric-card.clickable:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 20px rgba(74, 144, 226, 0.2);
+  border-color: rgba(74, 144, 226, 0.3);
+}
+
+.chart-indicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 0.8rem;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+
+.temperature-display .chart-indicator {
+  top: 0;
+  right: -20px;
+  font-size: 1rem;
+}
+
+.metric-card.clickable:hover .chart-indicator,
+.main-weather-card.clickable:hover .chart-indicator {
+  opacity: 1;
+}
+
+.chart-container {
+  margin-top: 2rem;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .metric-icon {
