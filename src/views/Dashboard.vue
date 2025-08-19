@@ -45,7 +45,7 @@
               <span class="temperature">{{
                 primaryWeatherData.temperature.toFixed(0)
               }}</span>
-              <span class="temperature-unit">°F</span>
+              <span class="temperature-unit">{{ temperatureUnit }}</span>
             </div>
             <div class="weather-info">
               <h3>{{ primaryStationName }}</h3>
@@ -53,7 +53,8 @@
                 {{ getWeatherCondition(primaryWeatherData) }}
               </p>
               <p class="feels-like">
-                Feels like {{ primaryWeatherData.feelsLike?.toFixed(0) }}°F
+                Feels like {{ primaryWeatherData.feelsLike?.toFixed(0)
+                }}{{ temperatureUnit }}
               </p>
               <p class="last-updated">
                 <span class="weather-emoji">🕒</span>
@@ -79,7 +80,8 @@
             <div class="metric-info">
               <span class="metric-label">Wind</span>
               <span class="metric-value"
-                >{{ primaryWeatherData?.windSpeed.toFixed(1) }} mph</span
+                >{{ primaryWeatherData?.windSpeed.toFixed(1) }}
+                {{ windSpeedUnit }}</span
               >
             </div>
           </div>
@@ -88,7 +90,8 @@
             <div class="metric-info">
               <span class="metric-label">Pressure</span>
               <span class="metric-value"
-                >{{ primaryWeatherData?.pressure.toFixed(2) }} Hg</span
+                >{{ primaryWeatherData?.pressure.toFixed(2) }}
+                {{ pressureUnit }}</span
               >
             </div>
           </div>
@@ -174,8 +177,14 @@
             <div class="weather-icon">{{ day.icon }}</div>
             <div class="condition">{{ day.condition }}</div>
             <div class="temperatures">
-              <span class="high">{{ day.high }}°</span>
-              <span class="low">{{ day.low }}°</span>
+              <span class="high"
+                >{{ convertForecastTemp(day.high)
+                }}{{ temperatureUnit.charAt(1) }}</span
+              >
+              <span class="low"
+                >{{ convertForecastTemp(day.low)
+                }}{{ temperatureUnit.charAt(1) }}</span
+              >
             </div>
           </div>
         </div>
@@ -287,6 +296,13 @@ const mapLoading = ref(false);
 const mapError = ref<string | null>(null);
 const weatherMapUrl = ref<string | null>(null);
 
+// User settings for unit display
+const userSettings = ref({
+  temperatureUnit: 'fahrenheit' as 'celsius' | 'fahrenheit',
+  windUnit: 'mph' as 'ms' | 'kmh' | 'mph' | 'knots',
+  pressureUnit: 'inhg' as 'hpa' | 'inhg' | 'mmhg',
+});
+
 // Computed properties for current weather
 const loading = computed(() => weatherStore.loading);
 const error = computed(() => weatherStore.error);
@@ -307,10 +323,44 @@ const primaryStationName = computed((): string => {
   return weatherData?.stationName || firstStation.name || 'Weather Station';
 });
 
+// Computed properties for unit labels
+const temperatureUnit = computed(() => {
+  return userSettings.value.temperatureUnit === 'celsius' ? '°C' : '°F';
+});
+
+const windSpeedUnit = computed(() => {
+  switch (userSettings.value.windUnit) {
+    case 'ms':
+      return 'm/s';
+    case 'kmh':
+      return 'km/h';
+    case 'mph':
+      return 'mph';
+    case 'knots':
+      return 'knots';
+    default:
+      return 'mph';
+  }
+});
+
+const pressureUnit = computed(() => {
+  switch (userSettings.value.pressureUnit) {
+    case 'hpa':
+      return 'hPa';
+    case 'inhg':
+      return 'inHg';
+    case 'mmhg':
+      return 'mmHg';
+    default:
+      return 'inHg';
+  }
+});
+
 // Auto-refresh interval
 let refreshInterval: number | null = null;
 
 onMounted(async () => {
+  loadUserSettings();
   await refreshData();
   await loadForecastData();
   await loadWeatherMap();
@@ -331,6 +381,22 @@ onUnmounted(() => {
 });
 
 // Methods
+function loadUserSettings() {
+  try {
+    const savedSettings = localStorage.getItem('myweather-app-settings');
+    if (savedSettings) {
+      const parsed = JSON.parse(savedSettings);
+      userSettings.value = {
+        temperatureUnit: parsed.temperatureUnit || 'fahrenheit',
+        windUnit: parsed.windUnit || 'mph',
+        pressureUnit: parsed.pressureUnit || 'inhg',
+      };
+    }
+  } catch (error) {
+    console.warn('Could not load user settings:', error);
+  }
+}
+
 async function refreshData() {
   await weatherStore.loadStations();
   if (weatherStore.hasStations) {
@@ -381,6 +447,15 @@ function formatMonthDate(dateString: string): string {
   const month = date.toLocaleDateString('en-US', { month: 'short' });
   const day = date.getDate();
   return `${month} ${day}`;
+}
+
+function convertForecastTemp(tempF: number): number {
+  // National Weather Service always returns Fahrenheit
+  // Convert to Celsius if user prefers Celsius
+  if (userSettings.value.temperatureUnit === 'celsius') {
+    return Math.round(((tempF - 32) * 5) / 9);
+  }
+  return Math.round(tempF);
 }
 
 // Get location name from coordinates using reverse geocoding
