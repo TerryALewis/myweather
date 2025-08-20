@@ -93,10 +93,7 @@
             <span class="metric-icon">🌬️</span>
             <div class="metric-info">
               <span class="metric-label">Wind</span>
-              <span class="metric-value"
-                >{{ primaryWeatherData?.windSpeed.toFixed(1) }}
-                {{ windSpeedUnit }}</span
-              >
+              <span class="metric-value">{{ getWindDescription() }}</span>
             </div>
             <div class="chart-indicator">📈</div>
           </div>
@@ -116,16 +113,51 @@
             <div class="chart-indicator">📈</div>
           </div>
           <div
-            class="metric-card clickable"
+            class="metric-card rainfall-card clickable"
             @click="showMetricChart('rainfall')"
             title="Click to view 24-hour history"
           >
             <span class="metric-icon">🌧️</span>
             <div class="metric-info">
               <span class="metric-label">Rainfall</span>
-              <span class="metric-value"
-                >{{ primaryWeatherData?.rainfall.toFixed(2) }} in</span
-              >
+              <div class="rainfall-values">
+                <div class="rainfall-item">
+                  <span class="rainfall-period">Today</span>
+                  <span class="rainfall-amount"
+                    >{{
+                      primaryWeatherData?.rainfall?.toFixed(2) || '0.00'
+                    }}
+                    in</span
+                  >
+                </div>
+                <div class="rainfall-item">
+                  <span class="rainfall-period">Week</span>
+                  <span class="rainfall-amount"
+                    >{{
+                      primaryWeatherData?.rainfallWeekly?.toFixed(2) || '0.00'
+                    }}
+                    in</span
+                  >
+                </div>
+                <div class="rainfall-item">
+                  <span class="rainfall-period">Month</span>
+                  <span class="rainfall-amount"
+                    >{{
+                      primaryWeatherData?.rainfallMonthly?.toFixed(2) || '0.00'
+                    }}
+                    in</span
+                  >
+                </div>
+                <div class="rainfall-item">
+                  <span class="rainfall-period">Year</span>
+                  <span class="rainfall-amount"
+                    >{{
+                      primaryWeatherData?.rainfallYearly?.toFixed(2) || '0.00'
+                    }}
+                    in</span
+                  >
+                </div>
+              </div>
             </div>
             <div class="chart-indicator">📈</div>
           </div>
@@ -366,7 +398,17 @@ const activeStations = computed(() => weatherStore.activeStations);
 const primaryWeatherData = computed((): WeatherData | null => {
   if (!activeStations.value || activeStations.value.length === 0) return null;
   const firstStation = activeStations.value[0];
-  return weatherStore.getStationData(firstStation.id);
+  const data = weatherStore.getStationData(firstStation.id);
+  console.log('🌧️ Dashboard - Primary weather data:', data);
+  if (data) {
+    console.log('🌧️ Dashboard - Rainfall data:', {
+      daily: data.rainfall,
+      weekly: data.rainfallWeekly,
+      monthly: data.rainfallMonthly,
+      yearly: data.rainfallYearly,
+    });
+  }
+  return data;
 });
 
 const primaryStationName = computed((): string => {
@@ -536,6 +578,51 @@ function convertForecastTemp(tempF: number): number {
     return Math.round(((tempF - 32) * 5) / 9);
   }
   return Math.round(tempF);
+}
+
+function getWindDirection(degrees: number): string {
+  // Convert wind direction degrees to compass direction
+  if (degrees < 0 || degrees > 360) return 'N/A';
+
+  const directions = [
+    'North',
+    'North-Northeast',
+    'Northeast',
+    'East-Northeast',
+    'East',
+    'East-Southeast',
+    'Southeast',
+    'South-Southeast',
+    'South',
+    'South-Southwest',
+    'Southwest',
+    'West-Southwest',
+    'West',
+    'West-Northwest',
+    'Northwest',
+    'North-Northwest',
+  ];
+
+  // Each direction covers 22.5 degrees (360 / 16)
+  const index = Math.round(degrees / 22.5) % 16;
+  return directions[index];
+}
+
+function getWindDescription(): string {
+  if (!primaryWeatherData.value) return 'No wind data';
+
+  const speed = primaryWeatherData.value.windSpeed.toFixed(1);
+  const direction = getWindDirection(
+    primaryWeatherData.value.windDirection || 0
+  );
+  const unit = windSpeedUnit.value;
+
+  // Handle calm winds
+  if (primaryWeatherData.value.windSpeed < 0.5) {
+    return 'Calm';
+  }
+
+  return `${speed} ${unit} (${direction.toLowerCase()})`;
 }
 
 // Get location name from coordinates using reverse geocoding
@@ -1433,6 +1520,67 @@ function closeChart() {
 
   .forecast-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Rainfall card specific styles */
+.rainfall-card .metric-info {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+}
+
+.rainfall-values {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+  width: 100%;
+}
+
+.rainfall-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px;
+  background: rgba(74, 144, 226, 0.05);
+  border-radius: 8px;
+  min-width: 0;
+  border: 1px solid rgba(74, 144, 226, 0.1);
+}
+
+.rainfall-period {
+  font-size: 0.75rem;
+  color: var(--text-color);
+  opacity: 0.7;
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.rainfall-amount {
+  font-size: 0.9rem;
+  color: var(--primary-color);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .rainfall-values {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .rainfall-item {
+    padding: 3px;
+  }
+
+  .rainfall-period {
+    font-size: 0.7rem;
+  }
+
+  .rainfall-amount {
+    font-size: 0.75rem;
   }
 }
 </style>
