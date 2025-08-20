@@ -568,7 +568,9 @@ function formatMonthDate(dateString: string): string {
   // Show the date as provided by the forecast data
   const date = new Date(dateString);
   const month = date.toLocaleDateString('en-US', { month: 'short' });
-  const day = date.getDate();
+  const day = date.getUTCDate();
+  console.log('formatMonthdate dateString: ', dateString);
+  console.log('formatMonthDate month/day: ', month + '/' + day)
   return `${month} ${day}`;
 }
 
@@ -686,7 +688,32 @@ async function loadForecastData() {
       location.latitude,
       location.longitude
     );
-    forecastData.value = forecast;
+    // Map day names: Today, Tomorrow, then weekday names, and ensure dates are sequential from today
+    // Use local time for date calculations
+    // Use local time for date calculations, ensure correct local date by setting time to noon
+    // Use local time for date calculations, ensure correct local date for Today tile
+    const now = new Date();
+    //now.setHours(12, 0, 0, 0); // Avoid timezone offset issues
+    forecastData.value = forecast.map((day, idx) => {
+      // Calculate the correct local date for each tile
+      
+      const dateObj = new Date(now.getTime() + idx * 24 * 60 * 60 * 1000);
+      let dayName = '';
+      if (idx === 0) {
+        dayName = 'Today';
+      } else if (idx === 1) {
+        dayName = 'Tomorrow';
+      } else {
+        dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+      }
+      // Format date as YYYY-MM-DD for consistency with forecast API
+      const year = dateObj.getFullYear();
+      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const dayNum = String(dateObj.getDate()).padStart(2, '0');
+      const formattedDate = `${year}-${month}-${dayNum}`;
+      console.log('formattedDate in 7-day Forecast: ', formattedDate);
+      return { ...day, dayName, date: formattedDate };
+    });
 
     // Get and store the location name for display
     const locationName = await getLocationName(
