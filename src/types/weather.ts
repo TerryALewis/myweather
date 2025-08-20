@@ -23,7 +23,10 @@ export interface WeatherData {
   windSpeed: number; // m/s
   windDirection: number; // degrees
   windGust: number; // m/s
-  rainfall: number; // mm
+  rainfall: number; // mm (daily)
+  rainfallWeekly?: number; // mm
+  rainfallMonthly?: number; // mm
+  rainfallYearly?: number; // mm
   solarRadiation?: number; // W/m²
   uvIndex?: number;
   dewPoint?: number; // °C
@@ -82,6 +85,18 @@ export interface EcowittWeatherData {
   };
   rainfall: {
     daily: {
+      value: string;
+      unit: string;
+    };
+    weekly: {
+      value: string;
+      unit: string;
+    };
+    monthly: {
+      value: string;
+      unit: string;
+    };
+    yearly: {
       value: string;
       unit: string;
     };

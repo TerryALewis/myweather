@@ -125,8 +125,16 @@ export const useWeatherStore = defineStore('weather', () => {
         station.applicationKey
       );
 
-      console.log('weatherDataL ', weatherData);
-      // Store in Convex for historical data
+      // Debug: log the weather data being stored
+      console.log('🏪 Store - Received weather data:', weatherData);
+      console.log('🌧️ Store - Rainfall values:', {
+        daily: weatherData.rainfall,
+        weekly: weatherData.rainfallWeekly,
+        monthly: weatherData.rainfallMonthly,
+        yearly: weatherData.rainfallYearly,
+      });
+
+      // Save to Convex
       await convexApi.saveWeatherReading(stationId, weatherData);
 
       // Update current data

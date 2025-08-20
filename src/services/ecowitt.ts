@@ -106,6 +106,7 @@ class EcowittApiService {
         throw new Error(`Ecowitt API Error: ${response.data.msg}`);
       }
 
+      // Parse current weather data
       return this.parseWeatherData(
         response.data.data,
         macAddress,
@@ -402,7 +403,7 @@ class EcowittApiService {
     console.log('👤 Using user settings:', userSettings); // Debug: log user settings
 
     const outdoor = data.outdoor || {};
-    const rainfall = data.rainfall_piezo || {};
+    const rainfall = data.rainfall_piezo || {}; // Changed back to rainfall_piezo
     const solarAndUvi = data.solar_and_uvi || {};
     const battery = data.battery || [];
     const wind = data.wind || [];
@@ -419,12 +420,23 @@ class EcowittApiService {
 
     console.log('🏷️ Extracted station name:', stationName); // Debug: log station name
 
+    // Debug rainfall data structure
+    console.log('🌧️ Full rainfall data structure:', rainfall);
+    console.log('🌧️ Rainfall available keys:', Object.keys(rainfall || {}));
+    console.log('🌧️ Daily rainfall:', rainfall.daily);
+    console.log('🌧️ Weekly rainfall:', rainfall.weekly);
+    console.log('🌧️ Monthly rainfall:', rainfall.monthly);
+    console.log('🌧️ Yearly rainfall:', rainfall.yearly);
+
     // Get raw values from API (in the units we requested)
     const tempRaw = parseFloat(outdoor.temperature?.value || '0');
     const humidityRaw = parseFloat(outdoor.humidity?.value || '0');
     const pressureRaw = parseFloat(pressureData?.absolute?.value || '0');
     const windSpeedRaw = parseFloat(wind?.wind_speed?.value || '0');
     const rainfallRaw = parseFloat(rainfall.daily?.value || '0');
+    const rainfallWeeklyRaw = parseFloat(rainfall.weekly?.value || '0');
+    const rainfallMonthlyRaw = parseFloat(rainfall.monthly?.value || '0');
+    const rainfallYearlyRaw = parseFloat(rainfall.yearly?.value || '0');
 
     // Convert units based on user preferences
     const temp = this.convertTemperature(tempRaw, userSettings.temperatureUnit);
@@ -438,6 +450,9 @@ class EcowittApiService {
       userSettings.windUnit
     );
     const rainfallConverted = this.mmToInches(rainfallRaw); // Always convert to inches for now
+    const rainfallWeeklyConverted = this.mmToInches(rainfallWeeklyRaw);
+    const rainfallMonthlyConverted = this.mmToInches(rainfallMonthlyRaw);
+    const rainfallYearlyConverted = this.mmToInches(rainfallYearlyRaw);
 
     // Calculate dew point and feels like in the user's preferred temperature unit
     const tempForCalculations =
@@ -491,6 +506,9 @@ class EcowittApiService {
         userSettings.windUnit
       ),
       rainfall: rainfallConverted,
+      rainfallWeekly: rainfallWeeklyConverted,
+      rainfallMonthly: rainfallMonthlyConverted,
+      rainfallYearly: rainfallYearlyConverted,
       solarRadiation: parseFloat(solarAndUvi.solar?.value || '0') || undefined,
       uvIndex: parseFloat(solarAndUvi.uvi?.value || '0') || undefined,
       dewPoint,
