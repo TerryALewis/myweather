@@ -565,10 +565,8 @@ function formatRelativeTime(timestamp: Date): string {
 }
 
 function formatMonthDate(dateString: string): string {
-  // Fix: Add 1 day to the date to match the correct forecast tile
+  // Show the date as provided by the forecast data
   const date = new Date(dateString);
-  // Add 1 day (in ms)
-  date.setDate(date.getDate() + 1);
   const month = date.toLocaleDateString('en-US', { month: 'short' });
   const day = date.getDate();
   return `${month} ${day}`;
