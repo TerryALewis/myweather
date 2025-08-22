@@ -45,15 +45,17 @@
           title="Click to view 24-hour temperature history"
         >
           <div v-if="primaryWeatherData" class="primary-weather">
-            <div class="temperature-display">
-              <span class="temperature">{{
-                primaryWeatherData.temperature.toFixed(0)
-              }}</span>
-              <span class="temperature-unit">{{ temperatureUnit }}</span>
-              <div class="chart-indicator">📈</div>
-            </div>
+          <div class="station-name">{{ primaryStationName }}</div>
+          <div class="temperature-panel-chart-indicator">📈</div>
+          <!-- Spacer to move temperature display further down -->
+          <div style="height: 2.5rem;"></div>
+          <div class="temperature-display">
+            <span class="temperature">{{
+              primaryWeatherData.temperature.toFixed(0)
+            }}</span>
+            <span class="temperature-unit">{{ temperatureUnit }}</span>
+          </div>
             <div class="weather-info">
-              <h3>{{ primaryStationName }}</h3>
               <p class="conditions">
                 {{ getWeatherCondition(primaryWeatherData) }}
               </p>
@@ -1201,10 +1203,30 @@ function closeChart() {
   transition: opacity 0.2s ease;
 }
 
-.temperature-display .chart-indicator {
-  top: 0;
-  right: -20px;
-  font-size: 1rem;
+.temperature-panel-chart-indicator {
+  position: absolute;
+  top: 5.5rem;
+  right: 1rem;
+  font-size: 1.3rem;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+  z-index: 2;
+}
+
+.main-weather-card.clickable:hover .temperature-panel-chart-indicator {
+  opacity: 1;
+}
+
+.station-name {
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--primary-color);
+  letter-spacing: 0.02em;
+  z-index: 2;
 }
 
 .metric-card.clickable:hover .chart-indicator,
