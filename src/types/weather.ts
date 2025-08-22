@@ -23,6 +23,11 @@ export interface WeatherData {
   windSpeed: number; // m/s
   windDirection: number; // degrees
   windGust: number; // m/s
+  wind?: {
+    wind_speed: number;
+    wind_direction: number;
+    wind_gust: number;
+  };
   rainfall: number; // mm (daily)
   rainfallWeekly?: number; // mm
   rainfallMonthly?: number; // mm

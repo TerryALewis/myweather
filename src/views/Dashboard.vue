@@ -93,7 +93,17 @@
             <span class="metric-icon">🌬️</span>
             <div class="metric-info">
               <span class="metric-label">Wind</span>
-              <span class="metric-value">{{ getWindDescription() }}</span>
+              <span class="metric-value">
+                <template v-if="getWindDescription() === 'Calm'">
+                  Calm
+                </template>
+                <template v-else>
+                  {{ getWindDescription().split(' (')[0] }}
+                  <span class="wind-direction-small">
+                    ({{ getWindDescription().split(' (')[1] }}
+                  </span>
+                </template>
+              </span>
             </div>
             <div class="chart-indicator">📈</div>
           </div>
@@ -570,7 +580,7 @@ function formatMonthDate(dateString: string): string {
   const month = date.toLocaleDateString('en-US', { month: 'short' });
   const day = date.getUTCDate();
   console.log('formatMonthdate dateString: ', dateString);
-  console.log('formatMonthDate month/day: ', month + '/' + day)
+  console.log('formatMonthDate month/day: ', month + '/' + day);
   return `${month} ${day}`;
 }
 
@@ -589,43 +599,84 @@ function getWindDirection(degrees: number): string {
 
   const directions = [
     'North',
-    'North-Northeast',
+    'North Northeast',
     'Northeast',
-    'East-Northeast',
+    'East Northeast',
     'East',
-    'East-Southeast',
+    'East Southeast',
     'Southeast',
-    'South-Southeast',
+    'South Southeast',
     'South',
-    'South-Southwest',
+    'South Southwest',
     'Southwest',
-    'West-Southwest',
+    'West Southwest',
     'West',
-    'West-Northwest',
+    'West Northwest',
     'Northwest',
-    'North-Northwest',
+    'North Northwest',
   ];
 
   // Each direction covers 22.5 degrees (360 / 16)
+  console.log('Wind degrees: ', degrees.toString());
   const index = Math.round(degrees / 22.5) % 16;
+  console.log('Wind direction index: ', index.toString());
+  console.log('Wind direction: ', directions[index].toString());
   return directions[index];
 }
 
 function getWindDescription(): string {
   if (!primaryWeatherData.value) return 'No wind data';
 
-  const speed = primaryWeatherData.value.windSpeed.toFixed(1);
-  const direction = getWindDirection(
-    primaryWeatherData.value.windDirection || 0
+  const wind = (primaryWeatherData.value as any).wind;
+  let speed: number = 0;
+  let directionDeg: number = 0;
+
+  // Debug log: show full wind object and top-level windSpeed/windDirection
+  console.log('🌬️ getWindDescription - wind object:', wind);
+  console.log(
+    '🌬️ getWindDescription - top-level windSpeed:',
+    primaryWeatherData.value.windSpeed,
+    'windDirection:',
+    primaryWeatherData.value.windDirection
   );
+
+  if (
+    wind &&
+    typeof wind.wind_speed === 'number' &&
+    typeof wind.wind_direction === 'number'
+  ) {
+    speed = wind.wind_speed;
+    directionDeg = wind.wind_direction;
+    console.log(
+      '🌬️ getWindDescription - using API response wind data:',
+      speed,
+      directionDeg
+    );
+  } else {
+    speed =
+      typeof primaryWeatherData.value.windSpeed === 'number'
+        ? primaryWeatherData.value.windSpeed
+        : 0;
+    directionDeg =
+      typeof primaryWeatherData.value.windDirection === 'number'
+        ? primaryWeatherData.value.windDirection
+        : 0;
+    console.log(
+      '🌬️ getWindDescription - using fallback top-level wind data:',
+      speed,
+      directionDeg
+    );
+  }
+
   const unit = windSpeedUnit.value;
+  const direction = getWindDirection(directionDeg);
 
   // Handle calm winds
-  if (primaryWeatherData.value.windSpeed < 0.5) {
+  if (speed < 0.5) {
     return 'Calm';
   }
 
-  return `${speed} ${unit} (${direction.toLowerCase()})`;
+  return `${speed.toFixed(1)} ${unit} (${direction.toLowerCase()})`;
 }
 
 // Get location name from coordinates using reverse geocoding
@@ -696,7 +747,7 @@ async function loadForecastData() {
     //now.setHours(12, 0, 0, 0); // Avoid timezone offset issues
     forecastData.value = forecast.map((day, idx) => {
       // Calculate the correct local date for each tile
-      
+
       const dateObj = new Date(now.getTime() + idx * 24 * 60 * 60 * 1000);
       let dayName = '';
       if (idx === 0) {
@@ -1591,6 +1642,12 @@ function closeChart() {
   color: var(--primary-color);
   font-weight: 600;
   white-space: nowrap;
+}
+
+/* Wind direction small font */
+.wind-direction-small {
+  font-size: 0.85em;
+  opacity: 0.7;
 }
 
 @media (max-width: 768px) {

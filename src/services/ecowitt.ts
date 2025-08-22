@@ -515,6 +515,20 @@ class EcowittApiService {
       feelsLike,
       batteryLevel,
       signalStrength: undefined, // Not provided by Ecowitt API
+      // Add nested wind object for dashboard compatibility
+      wind: {
+        wind_speed: parseFloat(
+          outdoor.wind?.wind_speed?.value || wind?.wind_speed?.value || '0'
+        ),
+        wind_direction: parseFloat(
+          outdoor.wind?.wind_direction?.value ||
+            wind?.wind_direction?.value ||
+            '0'
+        ),
+        wind_gust: parseFloat(
+          outdoor.wind?.wind_gust?.value || wind?.wind_gust?.value || '0'
+        ),
+      },
     };
   }
 
