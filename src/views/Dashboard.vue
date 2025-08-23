@@ -45,16 +45,16 @@
           title="Click to view 24-hour temperature history"
         >
           <div v-if="primaryWeatherData" class="primary-weather">
-          <div class="station-name">{{ primaryStationName }}</div>
-          <div class="temperature-panel-chart-indicator">📈</div>
-          <!-- Spacer to move temperature display further down -->
-          <div style="height: 2.5rem;"></div>
-          <div class="temperature-display">
-            <span class="temperature">{{
-              primaryWeatherData.temperature.toFixed(0)
-            }}</span>
-            <span class="temperature-unit">{{ temperatureUnit }}</span>
-          </div>
+            <div class="station-name">{{ primaryStationName }}</div>
+            <div class="temperature-panel-chart-indicator">📈</div>
+            <!-- Spacer to move temperature display further down -->
+            <div style="height: 2.5rem"></div>
+            <div class="temperature-display">
+              <span class="temperature">{{
+                primaryWeatherData.temperature.toFixed(0)
+              }}</span>
+              <span class="temperature-unit">{{ temperatureUnit }}</span>
+            </div>
             <div class="weather-info">
               <p class="conditions">
                 {{ getWeatherCondition(primaryWeatherData) }}
@@ -581,8 +581,8 @@ function formatMonthDate(dateString: string): string {
   const date = new Date(dateString);
   const month = date.toLocaleDateString('en-US', { month: 'short' });
   const day = date.getUTCDate();
-  console.log('formatMonthdate dateString: ', dateString);
-  console.log('formatMonthDate month/day: ', month + '/' + day);
+  //console.log('formatMonthdate dateString: ', dateString);
+  //console.log('formatMonthDate month/day: ', month + '/' + day);
   return `${month} ${day}`;
 }
 
@@ -619,10 +619,10 @@ function getWindDirection(degrees: number): string {
   ];
 
   // Each direction covers 22.5 degrees (360 / 16)
-  console.log('Wind degrees: ', degrees.toString());
+  //console.log('Wind degrees: ', degrees.toString());
   const index = Math.round(degrees / 22.5) % 16;
-  console.log('Wind direction index: ', index.toString());
-  console.log('Wind direction: ', directions[index].toString());
+  //console.log('Wind direction index: ', index.toString());
+  //console.log('Wind direction: ', directions[index].toString());
   return directions[index];
 }
 
@@ -764,7 +764,7 @@ async function loadForecastData() {
       const month = String(dateObj.getMonth() + 1).padStart(2, '0');
       const dayNum = String(dateObj.getDate()).padStart(2, '0');
       const formattedDate = `${year}-${month}-${dayNum}`;
-      console.log('formattedDate in 7-day Forecast: ', formattedDate);
+      //console.log('formattedDate in 7-day Forecast: ', formattedDate);
       return { ...day, dayName, date: formattedDate };
     });
 
@@ -975,7 +975,13 @@ async function showMetricChart(metricType: MetricType) {
         currentChartValue.value = primaryWeatherData.value.pressure.toFixed(2);
         break;
       case 'rainfall':
-        currentChartValue.value = primaryWeatherData.value.rainfall.toFixed(2);
+        // Use rainfall.event if available, fallback to rainfall
+        const rainfallEvent = (primaryWeatherData.value as any)?.rainfall
+          ?.event;
+        currentChartValue.value =
+          rainfallEvent !== undefined
+            ? Number(rainfallEvent).toFixed(2)
+            : primaryWeatherData.value.rainfall.toFixed(2);
         break;
       default:
         currentChartValue.value = '0';
@@ -983,6 +989,13 @@ async function showMetricChart(metricType: MetricType) {
 
     // Try to get real historical data from Ecowitt API
     console.log('🔄 Attempting to load real historical data...');
+    console.log('📡 Ecowitt historical data request:', {
+      macAddress: primaryStation.macAddress,
+      apiKey: primaryStation.apiKey,
+      applicationKey: primaryStation.applicationKey,
+      metricType,
+      userSettings: userSettings.value,
+    });
     let historicalData = await historicalDataService.getHistoricalData(
       primaryStation.macAddress,
       primaryStation.apiKey,
@@ -990,6 +1003,16 @@ async function showMetricChart(metricType: MetricType) {
       metricType,
       userSettings.value
     );
+    console.log('📡 Ecowitt historical data response:', historicalData);
+
+    // For rainfall chart, use rainfall.event if available in each data point
+    if (metricType === 'rainfall' && historicalData.length > 0) {
+      historicalData = historicalData.map((d: any) => ({
+        timestamp: d.timestamp,
+        value:
+          d.rainfall?.event !== undefined ? Number(d.rainfall.event) : d.value,
+      }));
+    }
 
     // If real data is empty or failed, fall back to generated data
     if (historicalData.length === 0) {

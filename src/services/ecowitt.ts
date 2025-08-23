@@ -171,6 +171,13 @@ class EcowittApiService {
       // Build call_back parameter based on requested metric type
       let callBackParam = 'outdoor,indoor.humidity'; // Default for general data
 
+      // If rainfall, set startTime to one week ago
+      let adjustedStartTime = startTime;
+      if (metricType === 'rainfall') {
+        const now = new Date();
+        adjustedStartTime = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      }
+
       if (metricType) {
         switch (metricType) {
           case 'windSpeed':
@@ -180,7 +187,9 @@ class EcowittApiService {
             callBackParam = 'outdoor,pressure.relative';
             break;
           case 'rainfall':
-            callBackParam = 'outdoor,rainfall_piezo.weekly';
+            //callBackParam = 'outdoor,rainfall.event';
+            //callBackParam = 'outdoor,rainfall_piezo.weekly';
+            callBackParam = 'outdoor,rainfall_piezo.rain_rate';
             break;
           case 'temperature':
             callBackParam = 'outdoor.temperature';
@@ -199,7 +208,7 @@ class EcowittApiService {
         application_key: applicationKey,
         api_key: apiKey,
         mac: macAddress,
-        start_date: formatEcowittDate(startTime),
+        start_date: formatEcowittDate(adjustedStartTime),
         end_date: formatEcowittDate(endTime),
         cycle_type: 'auto', // Use "auto" like in the working example
         call_back: callBackParam, // Dynamic based on metric type
@@ -295,7 +304,28 @@ class EcowittApiService {
         data.outdoor?.wind_speed?.list ||
         {};
 
-      const rainfallList = data.rainfall_piezo?.weekly?.list || {};
+      // Use rainfall_piezo.rain_rate.list if available, otherwise fallback to rainfall.event or rainfall_piezo.weekly
+      let rainfallList: Record<string, any> = {};
+      if (data.rainfall_piezo?.rain_rate?.list) {
+        rainfallList = data.rainfall_piezo.rain_rate.list;
+        console.log(
+          '🌧️ Using rainfall_piezo.rain_rate.list for historical rainfall data.'
+        );
+      } else if (data.rainfall?.event?.list) {
+        rainfallList = data.rainfall.event.list;
+        console.log(
+          '🌧️ Using rainfall.event for historical rainfall data (fallback).'
+        );
+      } else if (data.rainfall_piezo?.weekly?.list) {
+        rainfallList = data.rainfall_piezo.weekly.list;
+        console.log(
+          '🌧️ Using rainfall_piezo.weekly for historical rainfall data (fallback).'
+        );
+      } else {
+        console.log(
+          '🌧️ No rainfall_piezo.rain_rate, rainfall.event, or rainfall_piezo.weekly found in historical data.'
+        );
+      }
 
       console.log('📊 Extracted data lists:', {
         temperatureEntries: Object.keys(temperatureList).length,
@@ -322,8 +352,8 @@ class EcowittApiService {
 
       // Debug rainfall data specifically
       console.log('🌧️ Rainfall data structure:', {
-        rainfallPath: data.rainfall_piezo,
-        rainfallWeeklyPath: data.rainfall_piezo?.weekly,
+        rainfallEventsPath: data.rainfall?.events,
+        rainfallPiezoWeeklyPath: data.rainfall_piezo?.weekly,
         rainfallListSample: Object.entries(rainfallList).slice(0, 3),
       });
 
@@ -365,6 +395,7 @@ class EcowittApiService {
             });
           }
 
+          // For rainfall, rainfallRaw is now from rainfall.events if available
           return {
             timestamp,
             temperature: this.convertTemperature(

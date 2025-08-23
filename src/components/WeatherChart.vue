@@ -133,17 +133,27 @@ async function createChart() {
 
     // Prepare chart data
     const labels = props.data.map((item) => {
-      return item.timestamp.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-      });
+      // For rainfall chart, show date (YYYY-MM-DD), otherwise show time
+      if (props.title && props.title.toLowerCase().includes('rainfall')) {
+        return item.timestamp.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        });
+      } else {
+        return item.timestamp.toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+        });
+      }
     });
 
     const values = props.data.map((item) => item.value);
 
     console.log('📊 Chart data prepared:', { labels, values });
 
+    // All charts use a simple line (no circles) and bright axis labels
     const chartData: ChartData<'line'> = {
       labels,
       datasets: [
@@ -158,12 +168,13 @@ async function createChart() {
           pointBackgroundColor: props.color,
           pointBorderColor: '#ffffff',
           pointBorderWidth: 2,
-          pointRadius: 4,
-          pointHoverRadius: 6,
+          pointRadius: 0,
+          pointHoverRadius: 0,
         },
       ],
     };
 
+    const axisLabelColor = '#ffffff';
     const chartOptions: ChartOptions<'line'> = {
       responsive: true,
       maintainAspectRatio: false,
@@ -203,7 +214,7 @@ async function createChart() {
             color: 'rgba(255, 255, 255, 0.1)',
           },
           ticks: {
-            color: '#94a3b8',
+            color: axisLabelColor,
             maxTicksLimit: 6,
           },
         },
@@ -213,7 +224,7 @@ async function createChart() {
             color: 'rgba(255, 255, 255, 0.1)',
           },
           ticks: {
-            color: '#94a3b8',
+            color: axisLabelColor,
             callback: function (value) {
               return value + props.unit;
             },
