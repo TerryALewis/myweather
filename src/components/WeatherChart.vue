@@ -162,7 +162,7 @@ async function createChart() {
           data: values,
           borderColor: props.color,
           backgroundColor: props.color + '20', // Add transparency
-          borderWidth: 3,
+          borderWidth: window.innerWidth <= 500 ? 1.5 : 3, // Thinner line for small screens
           fill: true,
           tension: 0.4,
           pointBackgroundColor: props.color,
