@@ -578,11 +578,14 @@ function formatRelativeTime(timestamp: Date): string {
 
 function formatMonthDate(dateString: string): string {
   // Show the date as provided by the forecast data
+  //console.log('formatMonthDate dateString passed in: ', dateString);
   const date = new Date(dateString);
-  const month = date.toLocaleDateString('en-US', { month: 'short' });
+  //console.log('formatMonthDate date: ', date.toISOString().split('T')[0]);
+  const offsetMinutes = date.getTimezoneOffset();
+  const localDate = new Date(date.getTime() + offsetMinutes * 60 * 1000);
+  //console.log('localDate: ', localDate.toString());
+  const month = localDate.toLocaleDateString('en-US', { month: 'short' });
   const day = date.getUTCDate();
-  //console.log('formatMonthdate dateString: ', dateString);
-  //console.log('formatMonthDate month/day: ', month + '/' + day);
   return `${month} ${day}`;
 }
 
